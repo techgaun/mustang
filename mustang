@@ -1,0 +1,160 @@
+#!/bin/bash
+
+# Author: Samar Acharya
+# Convert video to gif format on linux
+
+prog=$(basename $0)
+default_err="Unknown error occurred"
+desc="A tool to convert video to gif format on linux"
+author="techgaun"
+version="0.1"
+red='\033[0;31m'
+green='\033[0;32m'
+nc='\033[0m'
+FFMPEG="ffmpeg"
+CONVERT="convert"
+SUDO="sudo "
+input_file=
+output_file=
+fps=12
+use_convert=false
+overwrite=false
+
+error() {
+    msg="${1:-$default_err}"
+    echo -e "${red}${msg}${nc}"
+    exit 1
+}
+
+msg() {
+    msg="${1:-nothing}"
+    echo -e "${green}${msg}${nc}"
+}
+
+is_debian() {
+    [[ -f "/usr/bin/apt-get" ]]
+}
+
+is_rhel() {
+    [[ -f "/usr/bin/yum" ]]
+}
+
+is_root() {
+    [[ "$(id -u)" == "0" ]]
+}
+
+is_docker() {
+    grep -e ":/.\+" /proc/1/cgroup > /dev/null 2>&1
+    [[ "$?" == "0" ]]
+}
+
+usage() {
+    echo >&2 "${prog} - written by ${author}
+Usage: ${prog} [-f <fps_numeric>] -i <input_file> -o <output_file> [-c] [-w]
+Example: ${prog} -f 15 -i /tmp/input.mp4 -o /tmp/output.gif
+         ${prog} -h
+Options:
+         -c         Enable use of convert command
+         -f         Frames per second for gif. Default: 12
+         -h         Show help screen
+         -i         Input video file
+         -o         Output gif file
+         -w         Overwrite output file if it exists
+    "
+    exit 0
+}
+
+update_db() {
+    if is_debian; then
+        ${SUDO} apt-get -y update > /dev/null 2>&1 || error "Could not update db"
+    elif is_rhel; then
+        ${SUDO} yum -y update > /dev/null 2>&1 || error "Could not update db"
+    else
+        echo "I am not sure how to update your repo db. will continue though"
+    fi
+}
+
+setup_ffmpeg() {
+    msg "ffmpeg not found. trying to install..."
+    if is_docker; then
+        msg "Running inside docker container"
+        msg "Performing package db update"
+        update_db
+    fi
+    if is_debian; then
+        # could use is_root
+        ${SUDO} apt-get install -y ffmpeg > /dev/null 2>&1 || error "Could not install ffmpeg"
+    elif is_rhel; then
+        ${SUDO} yum install -y ffmpeg > /dev/null 2>&1 || error "Could not install ffmpeg"
+    else
+        error "I don't support automatic install of ffmpeg for your system. Please install manually"
+    fi
+}
+
+setup_imagick() {
+    msg "imagemagick not found. trying to install..."
+    if is_docker; then
+        msg "Running inside docker container"
+        msg "Performing package db update"
+        update_db
+    fi
+    if is_debian; then
+        ${SUDO} apt-get install -y imagemagick > /dev/null 2>&1 || error "Could not install imagemagick"
+    elif is_rhel; then
+        ${SUDO} yum install -y imagemagick > /dev/null 2>&1 || error "Could not install imagemagick"
+    else
+        error "I don't support automatic install of imagemagick for your system. Please install manually"
+    fi
+}
+
+main() {
+    if [[ "$#" -eq 0 ]]; then
+        usage
+    fi
+
+    while getopts "cf:hi:o:w" opt; do
+        case ${opt} in
+            c) use_convert=true;;
+            h) usage;;
+            i) input_file="${OPTARG}";;
+            o) output_file="${OPTARG}";;
+            f) fps="${OPTARG}";;
+            w) overwrite=true;;
+            \?) usage;;
+        esac
+    done
+
+    if is_root; then
+        SUDO=
+    fi
+
+    "${FFMPEG}" -version > /dev/null 2>&1 || setup_ffmpeg
+    re='^[0-9]+$'
+    if [[ ! $fps =~ $re || $fps -gt 99 || $fps -lt 1 ]]; then
+        echo "Provided fps value is not numeric. Setting to default value : 12"
+        fps=12
+    fi
+
+    if [[ ! -f "${input_file}" || ! -r "${input_file}" ]]; then
+        error "The input file ${input_file} does not exist or is unreadable by current user"
+    fi
+
+    if [[ -f "${output_file}" && ${overwrite} == false ]]; then
+        error "The file specified as output already exists. Specify -w to overwrite"
+    fi
+
+    tmpdir=$(mktemp -d -t mustang.XXXXXX)
+    delay=$( awk "BEGIN {printf \"%.2f\n\", 100/${fps}}")
+    msg "Starting the conversion from video to gif"
+    "${FFMPEG}" -i "${input_file}" -r "${fps}" "${tmpdir}/mustang.gif" > /dev/null 2>&1 || error "Error running ffmpeg command"
+    if ${use_convert}; then
+        msg "-c switch is on. Using convert..."
+        "${CONVERT}" -version > /dev/null 2>&1 || setup_imagick
+        "${CONVERT}" -layers removeDups -layers Optimize -loop 0 -delay ${delay} "${tmpdir}/mustang.gif" "${output_file}" > /dev/null 2>&1 || error "Error running convert command"
+    else
+        mv -f "${tmpdir}/mustang.gif" "${output_file}"
+    fi
+    msg "Done with conversion."
+}
+
+main "$@"

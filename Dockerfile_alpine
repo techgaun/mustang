@@ -1,0 +1,10 @@
+FROM gliderlabs/alpine:latest
+
+MAINTAINER Samar Acharya <samar@techgaun.com>
+
+VOLUME ["/data"]
+RUN apk-install ffmpeg imagemagick bash
+ADD mustang /usr/bin/mustang
+RUN chmod +x /usr/bin/mustang
+ENTRYPOINT ["/usr/bin/mustang"]
+CMD ["-h"]

@@ -1,0 +1,14 @@
+FROM centos:7
+
+MAINTAINER Samar Acharya <samar@techgaun.com>
+
+VOLUME ["/data"]
+RUN rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm && \
+    rpm -ivh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm && \
+    yum update -y && \
+    yum -y install ffmpeg ImageMagick && \
+    yum clean all
+ADD mustang /usr/bin/mustang
+RUN chmod +x /usr/bin/mustang
+ENTRYPOINT ["/usr/bin/mustang"]
+CMD ["-h"]

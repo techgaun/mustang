@@ -1,0 +1,12 @@
+FROM ubuntu:15.04
+
+MAINTAINER Samar Acharya <samar@techgaun.com>
+
+VOLUME ["/data"]
+RUN apt-get -y update && \
+    apt-get install -y ffmpeg imagemagick && \
+    apt-get clean
+ADD mustang /usr/bin/mustang
+RUN chmod +x /usr/bin/mustang
+ENTRYPOINT ["/usr/bin/mustang"]
+CMD ["-h"]
