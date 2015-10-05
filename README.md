@@ -1,6 +1,8 @@
 # mustang
 A simple script to convert videos to animated gif
 
+![Tongue Twister](http://i.imgur.com/iMNDmMh.gif)
+
 ### Installation
 You can install mustang by following command:
 
