@@ -40,6 +40,8 @@ Options:
 
 - add high quality switch to create high quality gif
 - add transdiff toggle option
+- add ability to pass custom ffmpeg and convert args
+- add ability to cut the input video clip
 
 ### Author
-- Samar Acharya <samar@techgaun.com>
+- Samar Acharya \<samar@techgaun.com\>
